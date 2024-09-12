@@ -1,0 +1,162 @@
+install.packages("mlr")
+library("mlr")
+
+install.packages("tidyverse")
+library("tidyverse")
+
+library("data.table")
+library("dplyr")
+
+## DATASET
+
+data_load= "C:\\Users\\ASUS\\OneDrive\\Desktop\\Learnbay BA\\R Studio files\\salary_analysis_train.csv"
+data_load
+
+# SAPERATING DATASET INTO DATA TYPE
+
+colnames=names(sapply(data_load,class))
+colnames
+data_types=unname(sapply(data_load,class))
+data_types
+
+data.frame(Columns=colnames,Type=data_types)
+
+
+# EXTRACTING NUMERICAL COLUMNS FROM THE DATASET
+
+
+int_char_col=colnames(data_load)[sapply(data_load,class)%in%
+                                   c("integer","character")]
+int_char_col
+
+numeric_col=colnames(data_load)[sapply(data_load,class)%in%
+                                  c("numeric","integer")]
+numeric_col
+
+
+## DATATYPES WITH mlr Package
+
+df_type=mlr::summarizeColumns(data_load)
+colnames(df_type)
+df_type[c("name","type")]
+
+
+df_type$type%in%
+  c("integer","numeric")
+
+df_type[df_type$type%in%
+          c("integer","numeric"),]
+
+
+##  FIND QUANTILE OF DATA_LOAD [0%,25% , 50% , 75%,100%]
+
+quantile(data_load$Pay_in_INR)
+
+quantile(data_load$Pay_in_INR)[c(2,4)]
+unname(quantile(data_load$Pay_in_INR))[c(2,4)]
+
+# firstly change into valid column names
+# replacement of dot(.) is necessary because if we do joins then it is difficult for r to understand whether there is column_name or join
+
+new_Columns=gsub(pattern="\\.",replacement ="_",x=colnames(data_load),ignore.case = FALSE)
+colnames(data_load)=new_Columns
+colnames(data_load)
+view(data_load)
+mlr::summarizeColumns(data_load)
+
+# create quantile distribution of all columns of the data set
+
+numeric_col=colnames(data_load)[sapply(data_load,class)%in% c("numeric","integer")]
+percentile_value=c(0.00,0.25,0.50,0.75,1)
+quantile_dist= setDT(data_load)[, lapply(.SD,quantile,probs=percentile_value,na.rm=TRUE), .SDcols=numeric_col]
+quantile_dist
+
+quantile_df=data.frame(Names=colnames(quantile_dist),transpose(quantile_dist))
+colnames(quantile_df)=c("name",paste0("P_",percentile_value))
+quantile_df
+
+final_merge=merge(x=df_type,y=quantile_df,by=c("name"),all=TRUE)
+final_merge
+view(final_merge)
+
+
+## WAYS TO CHANGE THE COLUMN NAMES
+
+iris_dataset
+colnames(iris_dataset)[colnames(iris_dataset)=="Petal.Length"]<-"Petal_Length"
+iris_dataset
+
+setnames(iris_dataset,old="Sepal.Width",new="Speal_Width")
+colnames(iris_dataset)
+
+setnames(iris_dataset,old = c("Sepal.Length","Species"),new = c("Sepal_Length","species"),skip_absent = TRUE)
+colnames(iris_dataset)   
+
+
+##################################
+
+character_Cols=colnames(data_load)[sapply(data_load,class)%in%
+                                     "character"]
+character_Cols
+
+df=data_load%>%
+  data.frame()%>%
+  select(character_Cols)
+
+df%>%head()
+
+## FREQUENCY DISTRIBUTION
+# UNIVARIATE DISTRIBUTION
+
+Variables="Gender"
+freq_dis_df=data.frame(table(df[[variables]]))
+colnames(freq_dis_df)=c(Variables,"Count")
+
+freq_dist_df_sort=freq_dis_df%>%
+  arrange(-Count)
+freq_dist_df_sort["per_count"]=round(freq_dist_df_sort$Count*100/sum(freq_dist_df_sort$Count),2)
+freq_dist_df_sort
+
+# BIVARIATE DISTRIBUTION
+
+variable=c("Gender","Graduation")
+biv_dis_df=data.frame(table(df[[variable[1]]],df[[variable[2]]]))
+colnames(biv_dis_df)[1:2]=c(variable[1],variable[2])
+biv_dis_df
+
+freq_biv_df_sort=biv_dis_df%>%
+  arrange(-Freq)
+freq_biv_df_sort["per_count"]=round(biv_dis_df$Freq*100/sum(biv_dis_df$Freq),2)
+freq_biv_df_sort
+
+
+## CUMULITIVE FREQUENCY
+
+freq_biv_df_sort["cum_freq"]=cumsum(freq_biv_df_sort["per_count"])
+freq_biv_df_sort
+
+## copy paste to excel
+
+clipr::write_clip(freq_biv_df_sort)
+
+### MULTIVARIATE DISTRIBUTION
+
+data_load%>%
+  group_by(Gender,Graduation)%>%
+  summarise(Count=n(),
+            total_salary=sum(Pay_in_INR),
+            average=mean(GPA_Score_in_Graduation,na.rm=TRUE),
+            max_score=max(Score_in_Tenth,na.rm=TRUE),
+            distinct_state=n_distinct(State,na.rm = TRUE))
+
+
+## TYPE CONVERSION
+str(data_load)
+
+data_load%>%
+  data.frame()%>%
+  dplyr::mutate_if(is.numeric,as.character)%>%
+  str()
+
+data_load%>%
+  str()
